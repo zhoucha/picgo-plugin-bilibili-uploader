@@ -14,9 +14,9 @@ Linux: $XDG_CONFIG_HOME/picgo/ or ~/.config/picgo/
 macOS: ~/Library/Application\ Support/picgo/
 切换到新目录执行 npm install ./picgo-plugin-bilibili-uploader，然后重启应用即可。
 
-![image-20261029094000808](https://article.biliimg.com/bfs/new_dyn/5c99afd84fc1082f27b629b235b7b302580621798.png)
 
 
+![image-20261029103701156](https://archive.biliimg.com/bfs/archive/6641887f04e6ad7f74842c6678601a44078aa496.png)
 
 ###  2.配置
 
@@ -26,7 +26,7 @@ macOS: ~/Library/Application\ Support/picgo/
 
 #### 2.3、配置获取
 
-![image-20261029093623954](https://article.biliimg.com/bfs/new_dyn/f193f96f3625b6d919eca7b99a77520f580621798.png)
+![image-20261029104003381](https://archive.biliimg.com/bfs/archive/4cde7db83260b17b767042ab2b33e0a935494140.png)
 
 
 bilibili图床
