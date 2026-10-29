@@ -57,11 +57,14 @@ export = (ctx: PicGo) => {
         }
         // 上传到bilibili
         ctx.log.info('upload :', img.fileName, img.extname, img.buffer.length, 'bytes');
-        // 端点: POST https://api.bilibili.com/x/article/creative/article/upcover
-        // Cookie 需包含 SESSDATA 与 bili_jct，Origin/Referer 伪装成 member 后台页面
+        // 端点: POST https://member.bilibili.com/x/vu/web/cover/up（视频封面上传）
+        // 说明：api.bilibili.com 的 upcover 接口上传的图片（bfs/new_dyn）因未被专栏文章引用
+        // 会被 B 站定期清理（实测数小时后 404），故改用本接口（bfs/archive，长期存活）
+        // 图片以 base64 提交，form 选项会自动完成 URL 编码，Cookie 鉴权
         const mimeType = MIME_MAP[(img.extname || '').toLowerCase()] || 'image/png'
-        const uploadResponse:any = await ctx.request({
-          url: `https://api.bilibili.com/x/article/creative/article/upcover`,
+        const base64 = img.buffer.toString('base64')
+        const rawResponse: any = await ctx.request({
+          url: `https://member.bilibili.com/x/vu/web/cover/up`,
           method: 'POST',
           headers: {
                'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
@@ -69,25 +72,19 @@ export = (ctx: PicGo) => {
                'Referer': "https://member.bilibili.com/",
                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
           },
-          // request 库的 formData 文件字段必须使用 { value, options } 结构
-          formData: {
-            binary: {
-              value: img.buffer,
-              options: {
-                filename: img.fileName,
-                contentType: mimeType
-              }
-            },
-            csrf: bili_jct
-          },
-          json: true
+          form: {
+            csrf: bili_jct,
+            cover: `data:${mimeType};base64,${base64}`
+          }
         })
+        // request 库可能返回字符串或已解析对象，统一处理为对象
+        const uploadResponse: any = typeof rawResponse === 'string' ? JSON.parse(rawResponse) : rawResponse
         ctx.log.info('bilibili图床上传响应',uploadResponse)
 
         if (uploadResponse.code) {
           throw new Error(`上传失败: ${uploadResponse.message}`)
         }
-        // 成功时返回 { code: 0, data: { url, size } }
+        // 成功时返回 { code: 0, message: "OK", data: { url } }
         const rawUrl = uploadResponse?.data?.url
         if (!rawUrl) {
           throw new Error(`bilibili图床返回的URL为空: ${uploadResponse?.message || '未知响应'}`)
