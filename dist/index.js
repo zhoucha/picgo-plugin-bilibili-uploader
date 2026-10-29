@@ -30,7 +30,8 @@ module.exports = (ctx) => {
     const handleUpload = async (ctx) => {
         var _a;
         try {
-            const userConfig = ctx.getConfig(`${CONFIG_NAME}`);
+            // GUI 图床配置面板将本上传器的配置保存在 picBed.<CONFIG_NAME>
+            const userConfig = ctx.getConfig(`picBed.${CONFIG_NAME}`);
             if (!userConfig) {
                 throw new Error('未获取到bilibili图床配置');
             }
@@ -95,15 +96,16 @@ module.exports = (ctx) => {
     };
     const handleAfterUpload = async (ctx) => {
         try {
-            const userConfig = ctx.getConfig(`${CONFIG_NAME}`);
-            // 这里可以处理上传后的逻辑，比如记录日志、发送通知等
+            // afterUploadPlugins 对所有图床都会执行，仅在当前使用本图床时才处理，避免改写其他图床的上传结果
+            const currentUploader = ctx.getConfig('picBed.uploader') || ctx.getConfig('picBed.current');
+            if (currentUploader !== CONFIG_NAME) {
+                ctx.log.info(`当前使用非 bilibili图床，不处理上传后逻辑`);
+                return true;
+            }
             ctx.log.info('bilibili图床上传完成');
-            //将微信原始URL转换为Markdown/CDN链接，通过afterUploadPlugins实现
+            // 为本图床的上传结果补充 Markdown 格式字段
             for (const img of ctx.output) {
                 if (img.imgUrl) {
-                    let finalUrl = img.imgUrl;
-                    // 这里假设你要将bilibili URL转换为Markdown格式
-                    img.imgUrl = finalUrl;
                     img.markdown = `![](${img.imgUrl})`;
                     ctx.log.info('bilibili图床上传完成，图片URL:', img.imgUrl);
                 }
@@ -120,38 +122,21 @@ module.exports = (ctx) => {
             handle: handleUpload,
             config: config,
         });
-        ctx.helper.transformer.register(CONFIG_NAME, {
-            handle(ctx) {
-                console.log(ctx);
-                ctx.output.forEach((item) => {
-                    console.log('处理图片:', item.fileName);
-                });
-            }
-        });
+        // 不注册 transformer：使用默认 transformer（path）即可读取本地图片，避免选到空 transformer 导致上传失败
         ctx.helper.beforeTransformPlugins.register(CONFIG_NAME, {
             handle(ctx) {
-                console.log(ctx);
             }
         });
         ctx.helper.beforeUploadPlugins.register(CONFIG_NAME, {
             handle(ctx) {
-                console.log(ctx);
             }
         });
         ctx.helper.afterUploadPlugins.register(CONFIG_NAME, {
             handle: handleAfterUpload
         });
     };
-    const commands = (ctx) => [{
-            label: '',
-            key: '',
-            name: '',
-            async handle(ctx, guiApi) { }
-        }];
     return {
         uploader: CONFIG_NAME,
-        transformer: CONFIG_NAME,
-        commands,
         register
     };
 };

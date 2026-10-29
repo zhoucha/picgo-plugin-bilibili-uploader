@@ -41,12 +41,13 @@ export = (ctx: PicGo) => {
 
   const handleUpload = async (ctx: PicGo): Promise<boolean> => {
     try {
-      const userConfig = ctx.getConfig<IBilibiliConfig>(`${CONFIG_NAME}`)
+      // GUI 图床配置面板将本上传器的配置保存在 picBed.<CONFIG_NAME>
+      const userConfig = ctx.getConfig<IBilibiliConfig>(`picBed.${CONFIG_NAME}`)
       if (!userConfig) {
         throw new Error('未获取到bilibili图床配置')
       }
       const { bili_jct, SESSDATA } = userConfig
-     
+
       // 处理所有图片
       for (const img of ctx.output) {
         // 检查图片大小
@@ -54,7 +55,6 @@ export = (ctx: PicGo) => {
         if (imageSizeMB > 10) {
           throw new Error(`图片大小 ${imageSizeMB.toFixed(2)}MB 超过限制 10MB`)
         }
-        
         // 上传到bilibili
         ctx.log.info('upload :', img.fileName, img.extname, img.buffer.length, 'bytes');
         // 端点: POST https://api.bilibili.com/x/article/creative/article/upcover
@@ -67,7 +67,7 @@ export = (ctx: PicGo) => {
                'Cookie': `SESSDATA=${SESSDATA}; bili_jct=${bili_jct}`,
                'Origin': "https://member.bilibili.com",
                'Referer': "https://member.bilibili.com/",
-             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
           },
           // request 库的 formData 文件字段必须使用 { value, options } 结构
           formData: {
@@ -110,25 +110,26 @@ export = (ctx: PicGo) => {
   
 
   const handleAfterUpload = async (ctx: PicGo): Promise<boolean> => {
-    try{
-      const userConfig = ctx.getConfig<IBilibiliConfig>(`${CONFIG_NAME}`)
-    // 这里可以处理上传后的逻辑，比如记录日志、发送通知等
+    try {
+      // afterUploadPlugins 对所有图床都会执行，仅在当前使用本图床时才处理，避免改写其他图床的上传结果
+      const currentUploader = ctx.getConfig<string>('picBed.uploader') || ctx.getConfig<string>('picBed.current')
+      if (currentUploader !== CONFIG_NAME) {
+        ctx.log.info(`当前使用非 bilibili图床，不处理上传后逻辑`)
+        return true
+      }
       ctx.log.info('bilibili图床上传完成')
-      //将微信原始URL转换为Markdown/CDN链接，通过afterUploadPlugins实现
+      // 为本图床的上传结果补充 Markdown 格式字段
       for (const img of ctx.output) {
         if (img.imgUrl) {
-          let finalUrl = img.imgUrl
-          // 这里假设你要将bilibili URL转换为Markdown格式
-          img.imgUrl = finalUrl
           img.markdown = `![](${img.imgUrl})`
           ctx.log.info('bilibili图床上传完成，图片URL:', img.imgUrl)
         }
       }
-    }catch(err: any) {
-        ctx.log.error('上传后处理失败', err)
+    } catch (err: any) {
+      ctx.log.error('上传后处理失败', err)
     }
-     return true;
-    }
+    return true
+  }
 
   const register = (): void => {
     ctx.helper.uploader.register(CONFIG_NAME, {
@@ -137,38 +138,23 @@ export = (ctx: PicGo) => {
       config: config,
       
     })
-    ctx.helper.transformer.register(CONFIG_NAME, {
-      handle (ctx) {
-        ctx.output.forEach((item) => {
-          console.log('处理图片:', item.fileName)
-        })
-        
-      }
-    })
+    // 不注册 transformer：使用默认 transformer（path）即可读取本地图片，避免选到空 transformer 导致上传失败
     ctx.helper.beforeTransformPlugins.register(CONFIG_NAME, {
       handle (ctx) {
-       
+
       }
     })
     ctx.helper.beforeUploadPlugins.register(CONFIG_NAME, {
       handle (ctx) {
-       
+
       }
     })
     ctx.helper.afterUploadPlugins.register(CONFIG_NAME, {
-      handle : handleAfterUpload
+      handle: handleAfterUpload
     })
   }
-  const commands = (ctx: PicGo) => [{
-    label: '',
-    key: '',
-    name: '',
-    async handle (ctx: PicGo, guiApi: any) {}
-  }]
   return {
     uploader: CONFIG_NAME,
-    transformer: CONFIG_NAME,
-    commands,
     register
   }
 }
