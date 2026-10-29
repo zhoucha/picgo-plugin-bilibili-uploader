@@ -1,6 +1,6 @@
 "use strict";
 // Define the IWechatConfig interface according to your config structure
-const CONFIG_NAME = 'picgo-plugin-bilibili';
+const CONFIG_NAME = 'picgo-plugin-bilibili-uploader';
 // 常见图片扩展名 -> MIME 类型映射，用于 multipart 上传时的 contentType 声明
 const MIME_MAP = {
     '.png': 'image/png',
@@ -45,7 +45,6 @@ module.exports = (ctx) => {
                 // 上传到bilibili
                 ctx.log.info('upload :', img.fileName, img.extname, img.buffer.length, 'bytes');
                 // 端点: POST https://api.bilibili.com/x/article/creative/article/upcover
-                // 逆向自 wechatsync-2.0.9 扩展：表单字段名为 binary（图片二进制）+ csrf（bili_jct），
                 // Cookie 需包含 SESSDATA 与 bili_jct，Origin/Referer 伪装成 member 后台页面
                 const mimeType = MIME_MAP[(img.extname || '').toLowerCase()] || 'image/png';
                 const uploadResponse = await ctx.request({
@@ -106,7 +105,7 @@ module.exports = (ctx) => {
                     // 这里假设你要将bilibili URL转换为Markdown格式
                     img.imgUrl = finalUrl;
                     img.markdown = `![](${img.imgUrl})`;
-                    ctx.log.info('bilibili图床上传完成，已应用CDN和Markdown转换');
+                    ctx.log.info('bilibili图床上传完成，图片URL:', img.imgUrl);
                 }
             }
         }

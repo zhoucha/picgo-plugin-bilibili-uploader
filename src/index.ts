@@ -3,7 +3,7 @@ import { IPluginConfig  } from 'picgo/dist/utils/interfaces'
 import { URL } from 'url'
 
 // Define the IWechatConfig interface according to your config structure
-const CONFIG_NAME = 'picgo-plugin-bilibili'
+const CONFIG_NAME = 'picgo-plugin-bilibili-uploader'
 
 interface IBilibiliConfig {
   bili_jct: string
@@ -19,9 +19,6 @@ const MIME_MAP: Record<string, string> = {
   '.webp': 'image/webp',
   '.bmp': 'image/bmp'
 }
-
-
-
 export = (ctx: PicGo) => {
 
   const config = (): IPluginConfig[] => {
@@ -61,7 +58,6 @@ export = (ctx: PicGo) => {
         // 上传到bilibili
         ctx.log.info('upload :', img.fileName, img.extname, img.buffer.length, 'bytes');
         // 端点: POST https://api.bilibili.com/x/article/creative/article/upcover
-        // 逆向自 wechatsync-2.0.9 扩展：表单字段名为 binary（图片二进制）+ csrf（bili_jct），
         // Cookie 需包含 SESSDATA 与 bili_jct，Origin/Referer 伪装成 member 后台页面
         const mimeType = MIME_MAP[(img.extname || '').toLowerCase()] || 'image/png'
         const uploadResponse:any = await ctx.request({
@@ -114,7 +110,6 @@ export = (ctx: PicGo) => {
   
 
   const handleAfterUpload = async (ctx: PicGo): Promise<boolean> => {
-
     try{
       const userConfig = ctx.getConfig<IBilibiliConfig>(`${CONFIG_NAME}`)
     // 这里可以处理上传后的逻辑，比如记录日志、发送通知等
@@ -126,13 +121,12 @@ export = (ctx: PicGo) => {
           // 这里假设你要将bilibili URL转换为Markdown格式
           img.imgUrl = finalUrl
           img.markdown = `![](${img.imgUrl})`
-          ctx.log.info('bilibili图床上传完成，已应用CDN和Markdown转换')
+          ctx.log.info('bilibili图床上传完成，图片URL:', img.imgUrl)
         }
       }
     }catch(err: any) {
         ctx.log.error('上传后处理失败', err)
     }
-
      return true;
     }
 
@@ -145,7 +139,6 @@ export = (ctx: PicGo) => {
     })
     ctx.helper.transformer.register(CONFIG_NAME, {
       handle (ctx) {
-        console.log(ctx)
         ctx.output.forEach((item) => {
           console.log('处理图片:', item.fileName)
         })
@@ -154,12 +147,12 @@ export = (ctx: PicGo) => {
     })
     ctx.helper.beforeTransformPlugins.register(CONFIG_NAME, {
       handle (ctx) {
-        console.log(ctx)
+       
       }
     })
     ctx.helper.beforeUploadPlugins.register(CONFIG_NAME, {
       handle (ctx) {
-        console.log(ctx)
+       
       }
     })
     ctx.helper.afterUploadPlugins.register(CONFIG_NAME, {
